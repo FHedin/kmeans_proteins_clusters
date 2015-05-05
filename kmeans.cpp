@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -51,10 +52,11 @@ void findCl(vector< vector<double> >& cl,double& x, double& y,
 {
     double r(0.);
     double rMin(1.e20);
-
+#ifdef _OPENMP
     #pragma omp parallel default(none) shared(x,y,z,cl,skip,p,d) private(r) firstprivate(rMin)
     {
         #pragma omp for nowait schedule(dynamic)
+#endif //_OPENMP
         for(size_t i=0; i<cl.size(); i++)
         {
             //for skipping a given component of the vector cl
@@ -70,14 +72,20 @@ void findCl(vector< vector<double> >& cl,double& x, double& y,
             if(r<rMin)
             {
                 rMin=r;
+#ifdef _OPENMP
                 #pragma omp critical
                 {
+#endif //_OPENMP
                     p=i;
                     d=r;
+#ifdef _OPENMP
                 }
+#endif //_OPENMP
             }
         }
+#ifdef _OPENMP
     }//end parallel section
+#endif //_OPENMP
 }
 
 // merging some clusters if necessary during the cycling in main()
@@ -120,9 +128,11 @@ void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
 // initializing 1d and 2d vectors with zeroes
 void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& nAve)
 {
+#ifdef _OPENMP
     #pragma omp parallel default(none) shared(ave,nStates,nAve)
     {
         #pragma omp for nowait
+#endif //_OPENMP
         for(size_t i=0; i<ave.size(); i++)
         {
             ave.at(i).at(0)=0.0;
@@ -132,7 +142,9 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
             nStates.at(i)=0;
             nAve.at(i)=0;
         }
+#ifdef _OPENMP
     }
+#endif //_OPENMP
 
 }
 
@@ -148,7 +160,7 @@ int main(int argc, char* argv[])
     double rCutoff(2.);
 
     //Multiplicator factor of the cutoff for exclusion of lonely microstates
-    double mult(3.);
+    double mult(1.);
 
     //Threshold to consider a microstate is in water
     double rThrs(25.);
@@ -156,30 +168,49 @@ int main(int argc, char* argv[])
     //Tolerance for convergence
     double Tol(1e-4);
 
-    if(argc==3)
+    bool useDefault(true);
+
+    if(argc>=4)
     {
         inp=fopen(argv[1],"r");
         out=fopen(argv[2],"w");
+        // coordinates file for storing clusters location
+        outc=fopen(argv[3],"w");
+        if(argc>=5)
+            useDefault=(strcmp("--no-default",argv[4])==0)?false:true;
+        //cout << useDefault << endl;
     }
     else
     {
-        cout << "Error, not enough arguments, usage is : " << argv[0] << " {inputFile path} {outputFile path}"<<endl;
+        cout << "Error, not enough arguments, usage is : " << argv[0] << " {path to inputFile} {path to outputFile} {path to outputXYZ} [--no-default]"<<endl;
+        cout << "inputFile and outputFile and outputXYZ are necessary, --no-default is optional if not given default values for some internal variables are used,"
+             "otherwise the user will have to provide those values from command line." << endl;
         return EXIT_FAILURE;
     }
-    
-    // coordinates file for storing clusters location
-    outc=fopen("clusters.xyz","w");
 
-    cout<<"Cutoff for cluster determination?"<<endl;
-    cin>>rCutoff;
-    cout<<"Multiplicator factor of the cutoff for exclusion of lonely microstates?"<<endl;
-    cin>>mult;
-    cout<<"Threshold to consider a microstate is in water?"<<endl;
-    cin>>rThrs;
-    cout<<"Tolerance for convergence?"<<endl;
-    cin>>Tol;
-    cout<<"Max cycles?"<<endl;
-    cin>>maxCycle;
+
+    if(useDefault)
+    {
+        cout << "Using default values for :" << endl;
+        cout << "\t rCutoff : " << rCutoff << endl;
+        cout << "\t mult : " << mult << endl;
+        cout << "\t rThrs : " << rThrs << endl;
+        cout << "\t Tol : " << Tol << endl;
+        cout << "\t maxCycle : " << maxCycle << endl;
+    }
+    else
+    {
+        cout<<"Cutoff for cluster determination?"<<endl;
+        cin>>rCutoff;
+        cout<<"Multiplicator factor of the cutoff for exclusion of lonely microstates?"<<endl;
+        cin>>mult;
+        cout<<"Threshold to consider a microstate is in water?"<<endl;
+        cin>>rThrs;
+        cout<<"Tolerance for convergence?"<<endl;
+        cin>>Tol;
+        cout<<"Max cycles?"<<endl;
+        cin>>maxCycle;
+    }
 
     double rExclude(mult*rCutoff);
 
@@ -200,17 +231,22 @@ int main(int argc, char* argv[])
     double t_t(0.),t_x(0.),t_y(0.),t_z(0.),t_r(0.);
 
     // How was generated the input file ??
-    while(fscanf(inp,"%d %lf %lf %lf %lf %lf %d",&t_idTraj,&t_t,&t_x,&t_y,&t_z,&t_r,&t_p)!=EOF)
+//     while(fscanf(inp,"%d %lf %lf %lf %lf %lf %d",&t_idTraj,&t_t,&t_x,&t_y,&t_z,&t_r,&t_p)!=EOF)
+    while(fscanf(inp,"%lf %lf %lf",&t_x,&t_y,&t_z)!=EOF)
     {
-        idTraj.push_back(t_idTraj);
-        t.push_back(t_t);
+//         idTraj.push_back(t_idTraj);
+//         t.push_back(t_t);
         x.push_back(t_x);
         y.push_back(t_y);
         z.push_back(t_z);
-        r.push_back(t_r);
+//         r.push_back(t_r);
     }
 
     fclose(inp);
+
+    idTraj.resize(x.size(),0);
+    t.resize(x.size(),0.0);
+    r.resize(x.size(),0.0);
 
     vector<int> p(x.size(),0);
     vector<int> nStates,nAve;
