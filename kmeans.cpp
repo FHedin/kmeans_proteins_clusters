@@ -41,7 +41,7 @@ void bubble_sort(vector<int>& a, vector<int>& b,int n)
 }
 
 /*
- * For given x,y,z coordinates, find closest cluster
+ * For given x,y,z microstate coordinates, find closest cluster
  * store in p index of the cluster
  * and in d distance to the cluster
  * If skip =-1 work done for whole cl vector
@@ -157,10 +157,10 @@ int main(int argc, char* argv[])
     int maxCycle(250);
 
     //Cutoff for cluster determination
-    double rCutoff(2.);
+    double rCutoff(1.7);
 
     //Multiplicator factor of the cutoff for exclusion of lonely microstates
-    double mult(1.);
+    double mult(5.);
 
     //Threshold to consider a microstate is in water
     double rThrs(25.);
@@ -189,16 +189,7 @@ int main(int argc, char* argv[])
     }
 
 
-    if(useDefault)
-    {
-        cout << "Using default values for :" << endl;
-        cout << "\t rCutoff : " << rCutoff << endl;
-        cout << "\t mult : " << mult << endl;
-        cout << "\t rThrs : " << rThrs << endl;
-        cout << "\t Tol : " << Tol << endl;
-        cout << "\t maxCycle : " << maxCycle << endl;
-    }
-    else
+    if(!useDefault)
     {
         cout<<"Cutoff for cluster determination?"<<endl;
         cin>>rCutoff;
@@ -211,6 +202,13 @@ int main(int argc, char* argv[])
         cout<<"Max cycles?"<<endl;
         cin>>maxCycle;
     }
+    
+    cout << "Using default values for :" << endl;
+    cout << "\t rCutoff : " << rCutoff << endl;
+    cout << "\t mult : " << mult << endl;
+    cout << "\t rThrs : " << rThrs << endl;
+    cout << "\t Tol : " << Tol << endl;
+    cout << "\t maxCycle : " << maxCycle << endl;
 
     double rExclude(mult*rCutoff);
 
@@ -260,6 +258,7 @@ int main(int argc, char* argv[])
 
     while(!isConverged && nCycle<maxCycle )
     {
+        //cout<<"Cycle: "<<nCycle+1<<" nClusters: "<<cl.size()<<endl;
         // remove some clusters if required
         if(nCycle>0)
         {
@@ -268,7 +267,7 @@ int main(int argc, char* argv[])
             zeroArrays(ave,nStates,nAve);
         }
 
-        //iteration over number of atoms from x or y or z vectors
+        //iteration over number of microstates from x or y or z vectors
         for(size_t i(0); i<x.size(); i++)
         {
             double d(0.);
@@ -355,6 +354,8 @@ int main(int argc, char* argv[])
 
                 dr=sqrt(dr);
 
+                //cout << dr << "\t" << rThrs << endl;
+                
                 if(dr>rThrs)
                     continue;
 
