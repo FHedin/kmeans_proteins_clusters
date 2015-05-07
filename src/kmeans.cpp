@@ -12,6 +12,8 @@
 #include <vector>
 #include <cmath>
 
+#include "cluster.hpp"
+
 using namespace std;
 
 
@@ -47,8 +49,8 @@ void bubble_sort(vector<int>& a, vector<int>& b,int n)
  * If skip =-1 work done for whole cl vector
  * otherwise if skip>=0 skip the corresponding entry from cl
  */
-void findCl(vector< vector<double> >& cl,double& x, double& y,
-            double& z, double& d, int& p,int skip)
+void findCl(vector<cluster>& cl, double x, double y,
+            double z, double& d, int& p, int skip)
 {
     double r(0.);
     double rMin(1.e20);
@@ -63,9 +65,9 @@ void findCl(vector< vector<double> >& cl,double& x, double& y,
             if((int)i==skip)
                 continue;
 
-            r  = (x-cl.at(i).at(0))*(x-cl.at(i).at(0));
-            r += (y-cl.at(i).at(1))*(y-cl.at(i).at(1));
-            r += (z-cl.at(i).at(2))*(z-cl.at(i).at(2));
+            r  = (x-cl.at(i).getX())*(x-cl.at(i).getX());
+            r += (y-cl.at(i).getY())*(y-cl.at(i).getY());
+            r += (z-cl.at(i).getZ())*(z-cl.at(i).getZ());
 
             r=sqrt(r);
 
@@ -89,8 +91,8 @@ void findCl(vector< vector<double> >& cl,double& x, double& y,
 }
 
 // merging some clusters if necessary during the cycling in main()
-void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
-                 vector<int>& nStates,vector<int>& nAve,double& rExclude)
+void lumpCenters(vector<cluster>& cl, vector<cluster>& ave,
+                 vector<int>& nStates, vector<int>& nAve, double& rExclude)
 {
     int p(0);
     double d(0.);
@@ -100,15 +102,16 @@ void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
     //starting from the end of the cluster vector
     for(int i(cl.size()-1); i>0; i--)
     {
-        findCl(cl,cl.at(i).at(0),cl.at(i).at(1),cl.at(i).at(2),d,p,i);
+        findCl(cl,cl.at(i).getX(),cl.at(i).getY(),cl.at(i).getZ(),d,p,i);
         //cout<<"cluster and shortest distance: "<<i+1<<" "<<d<<" "<<p<<endl;
         if(d<=rExclude)
         {
             // merges the i and p clusters
-            cl.at(p).at(0) = ( (cl.at(p).at(0)+cl.at(i).at(0)) ) / 2.0;
-            cl.at(p).at(1) = ( (cl.at(p).at(1)+cl.at(i).at(1)) ) / 2.0;
-            cl.at(p).at(2) = ( (cl.at(p).at(2)+cl.at(i).at(2)) ) / 2.0;
-
+            //cl.at(p).at(0) = ( (cl.at(p).at(0)+cl.at(i).at(0)) ) / 2.0;
+            //cl.at(p).at(1) = ( (cl.at(p).at(1)+cl.at(i).at(1)) ) / 2.0;
+            //cl.at(p).at(2) = ( (cl.at(p).at(2)+cl.at(i).at(2)) ) / 2.0;
+            cl.at(p).mergeWith(cl.at(i));
+            
             cl.erase(cl.begin()+i);
             ave.erase(ave.begin()+i);
             nStates.erase(nStates.begin()+i);
@@ -126,7 +129,7 @@ void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
 }
 
 // initializing 1d and 2d vectors with zeroes
-void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& nAve)
+void zeroArrays(vector<cluster>& ave, vector<int>& nStates, vector<int>& nAve)
 {
 #ifdef _OPENMP
     #pragma omp parallel default(none) shared(ave,nStates,nAve)
@@ -135,9 +138,9 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
 #endif //_OPENMP
         for(size_t i=0; i<ave.size(); i++)
         {
-            ave.at(i).at(0)=0.0;
-            ave.at(i).at(1)=0.0;
-            ave.at(i).at(2)=0.0;
+            ave.at(i).setX(0.0);
+            ave.at(i).setY(0.0);
+            ave.at(i).setZ(0.0);
 
             nStates.at(i)=0;
             nAve.at(i)=0;
@@ -248,8 +251,8 @@ int main(int argc, char* argv[])
 
     vector<int> p(x.size(),0);
     vector<int> nStates,nAve;
-    vector< vector <double> > cl;
-    vector< vector <double> > ave;
+    vector<cluster> cl;
+    vector<cluster> ave;
 
     int nCycle(0);
     bool isConverged(false);
@@ -285,19 +288,21 @@ int main(int argc, char* argv[])
                     }
                     else
                     {
-                        cl.push_back(vector<double>(3));
-                        cl.at(cl.size()-1).at(0)=x.at(i);
-                        cl.at(cl.size()-1).at(1)=y.at(i);
-                        cl.at(cl.size()-1).at(2)=z.at(i);
-
+//                         cl.push_back(vector<double>(3));
+//                         cl.at(cl.size()-1).at(0)=x.at(i);
+//                         cl.at(cl.size()-1).at(1)=y.at(i);
+//                         cl.at(cl.size()-1).at(2)=z.at(i);
+                        cl.push_back( cluster(x.at(i),y.at(i),z.at(i)) );
+                        
                         nStates.push_back(1);
 
                         p.at(i)=cl.size();
 
-                        ave.push_back(vector<double>(3));
-                        ave.at(ave.size()-1).at(0)=x.at(i);
-                        ave.at(ave.size()-1).at(1)=y.at(i);
-                        ave.at(ave.size()-1).at(2)=z.at(i);
+//                         ave.push_back(vector<double>(3));
+//                         ave.at(ave.size()-1).at(0)=x.at(i);
+//                         ave.at(ave.size()-1).at(1)=y.at(i);
+//                         ave.at(ave.size()-1).at(2)=z.at(i);
+                        ave.push_back( cluster(x.at(i),y.at(i),z.at(i)) );
 
                         nAve.push_back(1);
                     }
