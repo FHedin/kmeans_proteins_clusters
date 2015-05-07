@@ -1,13 +1,39 @@
-all:
-	make release
-	#make debug
-debug:
-	#g++ -O0 -g -pg -std=c++11 -Wall -Wextra -pedantic -fopenmp kmeans.cpp -o kmeans
-	g++ -O0 -g -pg -std=c++11 -Wall -Wextra -pedantic kmeans.cpp -o kmeans
-	
-release:
-	#g++ -O3 -std=c++11 -ffast-math -Wall -Wextra -pedantic -fopenmp -march=native kmeans.cpp -o kmeans
-	g++ -O2 -std=c++11 -mtune=native -Wall -Wextra -pedantic kmeans.cpp -o kmeans
+#################################################################
+########################   MakeVars   ###########################
+#################################################################
+
+CXX=g++
+
+CXX_OPT= -std=c++11 -I "./include" -mtune=native -Wall -Wextra -pedantic -O2
+# CXX_OPT= -std=c++11 -I "./include" -mtune=native -Wall -Wextra -pedantic -O0 -g
+
+LD_LIB=
+
+LD_OPT=
+
+MKDIR=mkdir -p ./obj
+
+TARGET=kmeans
+
+SRC=$(wildcard ./src/*.cpp)
+
+OBJ=$(patsubst ./src/%.cpp,./obj/%.o,$(SRC))
+
+#################################################################
+########################   Makefile   ###########################
+#################################################################
+
+all:$(TARGET)
+	@echo "Compilation Success"
+
+$(TARGET):Makefile
+
+./obj/%.o:./src/%.cpp
+	@$(MKDIR)
+	$(CXX) $(CXX_OPT) -c $< -o $@
+
+$(TARGET):$(OBJ)
+	$(CXX) $(CXX_OPT) $(LD_LIB) $(OBJ) -o $@ $(LD_OPT)
 
 clean:
-	rm -f ./kmeans
+	rm -f $(TARGET) ./obj/*.o

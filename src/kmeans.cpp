@@ -12,6 +12,8 @@
 #include <vector>
 #include <cmath>
 
+#include "dcd_r.hpp"
+
 using namespace std;
 
 
@@ -52,40 +54,29 @@ void findCl(vector< vector<double> >& cl,double& x, double& y,
 {
     double r(0.);
     double rMin(1.e20);
-#ifdef _OPENMP
-    #pragma omp parallel default(none) shared(x,y,z,cl,skip,p,d) private(r) firstprivate(rMin)
+
+    for(size_t i=0; i<cl.size(); i++)
     {
-        #pragma omp for nowait schedule(dynamic)
-#endif //_OPENMP
-        for(size_t i=0; i<cl.size(); i++)
+        //for skipping a given component of the vector cl
+        if((int)i==skip)
+            continue;
+
+        r  = (x-cl.at(i).at(0))*(x-cl.at(i).at(0));
+        r += (y-cl.at(i).at(1))*(y-cl.at(i).at(1));
+        r += (z-cl.at(i).at(2))*(z-cl.at(i).at(2));
+
+        r=sqrt(r);
+
+        if(r<rMin)
         {
-            //for skipping a given component of the vector cl
-            if((int)i==skip)
-                continue;
+            rMin=r;
 
-            r  = (x-cl.at(i).at(0))*(x-cl.at(i).at(0));
-            r += (y-cl.at(i).at(1))*(y-cl.at(i).at(1));
-            r += (z-cl.at(i).at(2))*(z-cl.at(i).at(2));
+            p=i;
+            d=r;
 
-            r=sqrt(r);
-
-            if(r<rMin)
-            {
-                rMin=r;
-#ifdef _OPENMP
-                #pragma omp critical
-                {
-#endif //_OPENMP
-                    p=i;
-                    d=r;
-#ifdef _OPENMP
-                }
-#endif //_OPENMP
-            }
         }
-#ifdef _OPENMP
-    }//end parallel section
-#endif //_OPENMP
+    }
+
 }
 
 // merging some clusters if necessary during the cycling in main()
@@ -128,24 +119,15 @@ void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
 // initializing 1d and 2d vectors with zeroes
 void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& nAve)
 {
-#ifdef _OPENMP
-    #pragma omp parallel default(none) shared(ave,nStates,nAve)
+    for(size_t i=0; i<ave.size(); i++)
     {
-        #pragma omp for nowait
-#endif //_OPENMP
-        for(size_t i=0; i<ave.size(); i++)
-        {
-            ave.at(i).at(0)=0.0;
-            ave.at(i).at(1)=0.0;
-            ave.at(i).at(2)=0.0;
+        ave.at(i).at(0)=0.0;
+        ave.at(i).at(1)=0.0;
+        ave.at(i).at(2)=0.0;
 
-            nStates.at(i)=0;
-            nAve.at(i)=0;
-        }
-#ifdef _OPENMP
+        nStates.at(i)=0;
+        nAve.at(i)=0;
     }
-#endif //_OPENMP
-
 }
 
 int main(int argc, char* argv[])
@@ -202,7 +184,7 @@ int main(int argc, char* argv[])
         cout<<"Max cycles?"<<endl;
         cin>>maxCycle;
     }
-    
+
     cout << "Using default values for :" << endl;
     cout << "\t rCutoff : " << rCutoff << endl;
     cout << "\t mult : " << mult << endl;
@@ -355,7 +337,7 @@ int main(int argc, char* argv[])
                 dr=sqrt(dr);
 
                 //cout << dr << "\t" << rThrs << endl;
-                
+
                 if(dr>rThrs)
                     continue;
 
@@ -450,4 +432,33 @@ int main(int argc, char* argv[])
 
     return(0);
 
+}
+
+int main2(int argc, char* argv[])
+{
+    // instance of a new object DCD_R attached to a dcd file 
+    DCD_R dcdf("dyna.dcd");
+    
+    // read the header and print it
+    dcdf.read_header();
+    dcdf.printHeader();
+    
+    const float *x,*y,*z;
+    
+    // in this loop the coordinates are read frame by frame
+    for(int i=0;i<dcdf.getNFILE();i++)
+    {
+        dcdf.read_oneFrame();
+        
+        /* your code goes here */
+        
+        x=dcdf.getX();
+        y=dcdf.getY();
+        z=dcdf.getZ();
+        
+        /* ... */
+        
+    }
+    
+    return EXIT_SUCCESS;
 }
