@@ -1,8 +1,12 @@
-/**
- * The k-means clustering algorithm
- *
- * http://en.wikipedia.org/wiki/K-means_clustering
- *
+/*
+ * kmeans : c++ implementation of the kmeans algorithm (http://en.wikipedia.org/wiki/K-means_clustering)
+ * for finding clusters of stable microstates when studying ligand migration in proteins
+ * 
+ * Copyright (c) 2015, Florent Hédin, Pierre-André Cazade, and the University of Basel.
+ * All rights reserved.
+ * 
+ * The 3-clause BSD license is applied to this software.
+ * See LICENSE.txt
  */
 
 #include <cstdio>
@@ -132,9 +136,25 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
 
 int main(int argc, char* argv[])
 {
+    
+    if(argc<9)
+    {
+        cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {path to DCD} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
+        cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
+        cout << "optional arguments : " << endl;
+        cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
+        cout << "-cycles \t provide number of cycles" << endl;
+        cout << "-cutoff \t provide cutoff value for cluster determination" << endl;
+        cout << "-mult \t provide the Multiplicator factor of the cutoff for exclusion of lonely microstates" << endl;
+        cout << "-thresh \t provide the Threshold to consider a microstate is in water" << endl;
+        cout << "-tolerance \t provide the Tolerance for convergence" << endl;
+        return EXIT_FAILURE;
+    }
 
-    FILE *inp,*out,*outc;
+    FILE *outfile=nullptr, *xyzf=nullptr;
 
+    int dcdIndex(-1);
+    
     //maximum number of iterations
     int maxCycle(250);
 
@@ -151,24 +171,78 @@ int main(int argc, char* argv[])
     double Tol(1e-4);
 
     bool useDefault(true);
+    
+    DCD_R *dcdf = nullptr;
+    
+    // arguments parsing
+    for (int i=1; i<argc; i++)
+    {
+        // index of atom to study from dcd
+        if (!strcasecmp(argv[i],"-idx"))
+        {
+            dcdIndex = atoi(argv[++i]);
+        }
+        // get name of dcd file
+        else if (!strcasecmp(argv[i],"-dcd"))
+        {
+            dcdf = new DCD_R(argv[++i]);
+            dcdf->read_header();
+            dcdf->printHeader();
+        }
+        // output file
+        else if (!strcasecmp(argv[i],"-out"))
+        {
+            outfile = fopen(argv[++i],"wt");
+        }
+        // output xyz
+        else if (!strcasecmp(argv[i],"-xyz"))
+        {
+            xyzf = fopen(argv[++i],"wt");
+        }
+        // get number of cycles
+        else if (!strcasecmp(argv[i],"-cycles"))
+        {
+            maxCycle = atoi(argv[++i]);
+        }
+        else if (!strcasecmp(argv[i],"-cutoff"))
+        {
+            rCutoff = strtod(argv[++i],nullptr);
+        }
+        else if (!strcasecmp(argv[i],"-mult"))
+        {
+            mult = strtod(argv[++i],nullptr);
+        }
+        else if (!strcasecmp(argv[i],"-thresh"))
+        {
+            rThrs = strtod(argv[++i],nullptr);
+        }
+        else if (!strcasecmp(argv[i],"-tolerance"))
+        {
+            Tol = strtod(argv[++i],nullptr);
+        }
+        else if (!strcasecmp(argv[i],"-interactive"))
+        {
+            useDefault = false;
+        }
+    }
 
-    if(argc>=4)
-    {
-        inp=fopen(argv[1],"r");
-        out=fopen(argv[2],"w");
-        // coordinates file for storing clusters location
-        outc=fopen(argv[3],"w");
-        if(argc>=5)
-            useDefault=(strcmp("--no-default",argv[4])==0)?false:true;
-        //cout << useDefault << endl;
-    }
-    else
-    {
-        cout << "Error, not enough arguments, usage is : " << argv[0] << " {path to inputFile} {path to outputFile} {path to outputXYZ} [--no-default]"<<endl;
-        cout << "inputFile and outputFile and outputXYZ are necessary, --no-default is optional if not given default values for some internal variables are used,"
-             "otherwise the user will have to provide those values from command line." << endl;
-        return EXIT_FAILURE;
-    }
+//     if(argc>=4)
+//     {
+//         inp=fopen(argv[1],"r");
+//         outfile=fopen(argv[2],"w");
+//         // coordinates file for storing clusters location
+//         xyzf=fopen(argv[3],"w");
+//         if(argc>=5)
+//             useDefault=(strcmp("--no-default",argv[4])==0)?false:true;
+//         //cout << useDefault << endl;
+//     }
+//     else
+//     {
+//         cout << "Error, not enough arguments, usage is : " << argv[0] << " {path to inputFile} {path to outputFile} {path to outputXYZ} [--no-default]"<<endl;
+//         cout << "inputFile and outputFile and outputXYZ are necessary, --no-default is optional if not given default values for some internal variables are used,"
+//              "otherwise the user will have to provide those values from command line." << endl;
+//         return EXIT_FAILURE;
+//     }
 
 
     if(!useDefault)
@@ -185,7 +259,7 @@ int main(int argc, char* argv[])
         cin>>maxCycle;
     }
 
-    cout << "Using default values for :" << endl;
+    cout << "Values used for parameters :" << endl;
     cout << "\t rCutoff : " << rCutoff << endl;
     cout << "\t mult : " << mult << endl;
     cout << "\t rThrs : " << rThrs << endl;
@@ -195,6 +269,8 @@ int main(int argc, char* argv[])
     double rExclude(mult*rCutoff);
 
     cout<<"Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = "<<rExclude<<endl;
+    
+//     exit(0);
 
     /*
      * vectors sor storing data read from input file
@@ -206,23 +282,39 @@ int main(int argc, char* argv[])
     vector<double> z;
     vector<double> r;
 
-    //temporary variables for reading from file and then storing in vectors
-    int t_idTraj(0),t_p(0);
-    double t_t(0.),t_x(0.),t_y(0.),t_z(0.),t_r(0.);
+//     // How was generated the input file ??
+// //     while(fscanf(inp,"%d %lf %lf %lf %lf %lf %d",&t_idTraj,&t_t,&t_x,&t_y,&t_z,&t_r,&t_p)!=EOF)
+//     FILE *inp;
+//     while(fscanf(inp,"%lf %lf %lf",&t_x,&t_y,&t_z)!=EOF)
+//     {
+// //         idTraj.push_back(t_idTraj);
+// //         t.push_back(t_t);
+//         x.push_back(t_x);
+//         y.push_back(t_y);
+//         z.push_back(t_z);
+// //         r.push_back(t_r);
+//     }
 
-    // How was generated the input file ??
-//     while(fscanf(inp,"%d %lf %lf %lf %lf %lf %d",&t_idTraj,&t_t,&t_x,&t_y,&t_z,&t_r,&t_p)!=EOF)
-    while(fscanf(inp,"%lf %lf %lf",&t_x,&t_y,&t_z)!=EOF)
+//     fclose(inp);
+   
+    
+    // in this loop the coordinates are read frame by frame
+    for(int i=0;i<dcdf->getNFILE();i++)
     {
-//         idTraj.push_back(t_idTraj);
-//         t.push_back(t_t);
-        x.push_back(t_x);
-        y.push_back(t_y);
-        z.push_back(t_z);
-//         r.push_back(t_r);
-    }
+//         dcdf->
+        
+        const float *lx,*ly,*lz;
+        
+        dcdf->read_oneFrame();
 
-    fclose(inp);
+        lx=dcdf->getX();
+        ly=dcdf->getY();
+        lz=dcdf->getZ();
+        
+        x.push_back(lx[dcdIndex-1]);
+        y.push_back(ly[dcdIndex-1]);
+        z.push_back(lz[dcdIndex-1]);
+    }
 
     idTraj.resize(x.size(),0);
     t.resize(x.size(),0.0);
@@ -253,6 +345,7 @@ int main(int argc, char* argv[])
         for(size_t i(0); i<x.size(); i++)
         {
             double d(0.);
+            int t_p(0);
 
             // if cl not empty
             if(cl.size()>0)
@@ -400,65 +493,65 @@ int main(int argc, char* argv[])
     {
         cout<<"Not Converged! Number of clusters: "<<cl.size()<<" drMin: "<<drMin<<" drMax "<<drMax<<endl;
 
-        fprintf(outc,"%d\n",(int)cl.size()+1);
-        fprintf(outc,"clusters\n");
-        fprintf(outc,"Fe  0.0000 0.00000 0.00000\n");
+        fprintf(xyzf,"%d\n",(int)cl.size()+1);
+        fprintf(xyzf,"clusters\n");
+        fprintf(xyzf,"Fe  0.0000 0.00000 0.00000\n");
         for(size_t i(0); i<nStates.size(); i++)
         {
             cout<<mask.at(i)<<" "<<nStates.at(i)<<" "<<double(nStates.at(i))/double(x.size())*100.<<endl;
-            fprintf(outc,"%s %lf %lf %lf\n","Ar  ",cl.at(mask.at(i)).at(0),cl.at(mask.at(i)).at(1),cl.at(mask.at(i)).at(2));
+            fprintf(xyzf,"%s %lf %lf %lf\n","Ar  ",cl.at(mask.at(i)).at(0),cl.at(mask.at(i)).at(1),cl.at(mask.at(i)).at(2));
         }
 
         for(size_t i(0); i<x.size(); i++)
-            fprintf(out,"%d %lf %lf %lf %lf %lf %d\n",idTraj.at(i),t.at(i),x.at(i),y.at(i),z.at(i),r.at(i),p.at(i));
+            fprintf(outfile,"%d %lf %lf %lf %lf %lf %d\n",idTraj.at(i),t.at(i),x.at(i),y.at(i),z.at(i),r.at(i),p.at(i));
     }
     else
     {
-        fprintf(outc,"%d\n",(int)cl.size()+1);
-        fprintf(outc,"clusters\n");
-        fprintf(outc,"Fe  0.0000 0.00000 0.00000\n");
+        fprintf(xyzf,"%d\n",(int)cl.size()+1);
+        fprintf(xyzf,"clusters\n");
+        fprintf(xyzf,"Fe  0.0000 0.00000 0.00000\n");
         for(size_t i(0); i<nStates.size(); i++)
         {
             cout<<mask.at(i)<<" "<<nStates.at(i)<<" "<<double(nStates.at(i))/double(x.size())*100.<<endl;
-            fprintf(outc,"%s %lf %lf %lf\n","Ar  ",cl.at(mask.at(i)).at(0),cl.at(mask.at(i)).at(1),cl.at(mask.at(i)).at(2));
+            fprintf(xyzf,"%s %lf %lf %lf\n","Ar  ",cl.at(mask.at(i)).at(0),cl.at(mask.at(i)).at(1),cl.at(mask.at(i)).at(2));
         }
 
         for(size_t i(0); i<x.size(); i++)
-            fprintf(out,"%d %lf %lf %lf %lf %lf %d\n",idTraj.at(i),t.at(i),x.at(i),y.at(i),z.at(i),r.at(i),p.at(i));
+            fprintf(outfile,"%d %lf %lf %lf %lf %lf %d\n",idTraj.at(i),t.at(i),x.at(i),y.at(i),z.at(i),r.at(i),p.at(i));
     }
 
-    fclose(out);
-    fclose(outc);
+    fclose(outfile);
+    fclose(xyzf);
 
     return(0);
 
 }
 
-int main2(int argc, char* argv[])
-{
-    // instance of a new object DCD_R attached to a dcd file 
-    DCD_R dcdf("dyna.dcd");
-    
-    // read the header and print it
-    dcdf.read_header();
-    dcdf.printHeader();
-    
-    const float *x,*y,*z;
-    
-    // in this loop the coordinates are read frame by frame
-    for(int i=0;i<dcdf.getNFILE();i++)
-    {
-        dcdf.read_oneFrame();
-        
-        /* your code goes here */
-        
-        x=dcdf.getX();
-        y=dcdf.getY();
-        z=dcdf.getZ();
-        
-        /* ... */
-        
-    }
-    
-    return EXIT_SUCCESS;
-}
+// int main2(int argc, char* argv[])
+// {
+//     // instance of a new object DCD_R attached to a dcd file 
+//     DCD_R dcdf("dyna.dcd");
+//     
+//     // read the header and print it
+//     dcdf.read_header();
+//     dcdf.printHeader();
+//     
+//     const float *x,*y,*z;
+//     
+//     // in this loop the coordinates are read frame by frame
+//     for(int i=0;i<dcdf.getNFILE();i++)
+//     {
+//         dcdf.read_oneFrame();
+//         
+//         /* your code goes here */
+//         
+//         x=dcdf.getX();
+//         y=dcdf.getY();
+//         z=dcdf.getZ();
+//         
+//         /* ... */
+//         
+//     }
+//     
+//     return EXIT_SUCCESS;
+// }
