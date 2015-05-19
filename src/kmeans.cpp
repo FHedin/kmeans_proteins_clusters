@@ -14,6 +14,7 @@
 #include <cstring>
 #include <iostream>
 #include <vector>
+#include <string>
 #include <cmath>
 
 #include "dcd_r.hpp"
@@ -134,12 +135,24 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
     }
 }
 
+vector<DCD_R> read_dcds(vector<string>& dcd_paths)
+{
+    vector<DCD_R> dcd;
+    
+    for(string name : dcd_paths)
+    {
+        dcd.push_back(DCD_R(name.c_str()));
+    }
+    
+    return dcd;
+}
+
 int main(int argc, char* argv[])
 {
     
-    if(argc<9)
+    if(argc<10)
     {
-        cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {path to DCD} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
+        cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
         cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
         cout << "optional arguments : " << endl;
         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
@@ -172,7 +185,9 @@ int main(int argc, char* argv[])
 
     bool useDefault(true);
     
-    DCD_R *dcdf = nullptr;
+    vector<DCD_R> dcds;
+    
+    //DCD_R *dcdf = nullptr;
     
     // arguments parsing
     for (int i=1; i<argc; i++)
@@ -182,12 +197,27 @@ int main(int argc, char* argv[])
         {
             dcdIndex = atoi(argv[++i]);
         }
-        // get name of dcd file
+        // get name of dcd files
         else if (!strcasecmp(argv[i],"-dcd"))
         {
-            dcdf = new DCD_R(argv[++i]);
-            dcdf->read_header();
-            dcdf->printHeader();
+            int ndcd = atoi(argv[++i]);
+            cout << "User provided " << ndcd << " dcd files : " << endl;
+            
+            vector<string> paths;
+            
+            for(int it=0;it<ndcd;it++)
+            {
+                paths.push_back(string(argv[++i]));
+                cout << paths.at(it) << endl;
+            }
+
+            dcds = read_dcds(paths);
+
+            for(DCD_R& dc : dcds)
+            {
+                dc.printHeader();
+            }
+            
         }
         // output file
         else if (!strcasecmp(argv[i],"-out"))
@@ -225,26 +255,7 @@ int main(int argc, char* argv[])
             useDefault = false;
         }
     }
-
-//     if(argc>=4)
-//     {
-//         inp=fopen(argv[1],"r");
-//         outfile=fopen(argv[2],"w");
-//         // coordinates file for storing clusters location
-//         xyzf=fopen(argv[3],"w");
-//         if(argc>=5)
-//             useDefault=(strcmp("--no-default",argv[4])==0)?false:true;
-//         //cout << useDefault << endl;
-//     }
-//     else
-//     {
-//         cout << "Error, not enough arguments, usage is : " << argv[0] << " {path to inputFile} {path to outputFile} {path to outputXYZ} [--no-default]"<<endl;
-//         cout << "inputFile and outputFile and outputXYZ are necessary, --no-default is optional if not given default values for some internal variables are used,"
-//              "otherwise the user will have to provide those values from command line." << endl;
-//         return EXIT_FAILURE;
-//     }
-
-
+    
     if(!useDefault)
     {
         cout<<"Cutoff for cluster determination?"<<endl;
@@ -269,8 +280,6 @@ int main(int argc, char* argv[])
     double rExclude(mult*rCutoff);
 
     cout<<"Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = "<<rExclude<<endl;
-    
-//     exit(0);
 
     /*
      * vectors sor storing data read from input file
@@ -281,40 +290,22 @@ int main(int argc, char* argv[])
     vector<double> y;
     vector<double> z;
     vector<double> r;
-
-//     // How was generated the input file ??
-// //     while(fscanf(inp,"%d %lf %lf %lf %lf %lf %d",&t_idTraj,&t_t,&t_x,&t_y,&t_z,&t_r,&t_p)!=EOF)
-//     FILE *inp;
-//     while(fscanf(inp,"%lf %lf %lf",&t_x,&t_y,&t_z)!=EOF)
-//     {
-// //         idTraj.push_back(t_idTraj);
-// //         t.push_back(t_t);
-//         x.push_back(t_x);
-//         y.push_back(t_y);
-//         z.push_back(t_z);
-// //         r.push_back(t_r);
-//     }
-
-//     fclose(inp);
-   
-    
+  
     // in this loop the coordinates are read frame by frame
-    for(int i=0;i<dcdf->getNFILE();i++)
-    {
-//         dcdf->
-        
-        const float *lx,*ly,*lz;
-        
-        dcdf->read_oneFrame();
-
-        lx=dcdf->getX();
-        ly=dcdf->getY();
-        lz=dcdf->getZ();
-        
-        x.push_back(lx[dcdIndex-1]);
-        y.push_back(ly[dcdIndex-1]);
-        z.push_back(lz[dcdIndex-1]);
-    }
+//     for(int i=0;i<dcdf->getNFILE();i++)
+//     {
+//         const float *lx,*ly,*lz;
+//         
+//         dcdf->read_oneFrame();
+// 
+//         lx=dcdf->getX();
+//         ly=dcdf->getY();
+//         lz=dcdf->getZ();
+//         
+//         x.push_back(lx[dcdIndex-1]);
+//         y.push_back(ly[dcdIndex-1]);
+//         z.push_back(lz[dcdIndex-1]);
+//     }
 
     idTraj.resize(x.size(),0);
     t.resize(x.size(),0.0);
@@ -527,31 +518,3 @@ int main(int argc, char* argv[])
 
 }
 
-// int main2(int argc, char* argv[])
-// {
-//     // instance of a new object DCD_R attached to a dcd file 
-//     DCD_R dcdf("dyna.dcd");
-//     
-//     // read the header and print it
-//     dcdf.read_header();
-//     dcdf.printHeader();
-//     
-//     const float *x,*y,*z;
-//     
-//     // in this loop the coordinates are read frame by frame
-//     for(int i=0;i<dcdf.getNFILE();i++)
-//     {
-//         dcdf.read_oneFrame();
-//         
-//         /* your code goes here */
-//         
-//         x=dcdf.getX();
-//         y=dcdf.getY();
-//         z=dcdf.getZ();
-//         
-//         /* ... */
-//         
-//     }
-//     
-//     return EXIT_SUCCESS;
-// }

@@ -21,6 +21,10 @@ DCD::DCD()
 {
 }
 
+DCD::DCD(const DCD&)
+{
+}
+
 /*
  * When writing a block of binary data to a file, Fortran adds 2 unsigned integer before and after the block : each one contains the total number of bytes of the block.
  * 
