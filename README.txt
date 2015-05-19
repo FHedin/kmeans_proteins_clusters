@@ -15,7 +15,7 @@ Print help/usage :
 
 ./kmeans
 
-Error, not enough arguments, usage is : kmeans -idx index of atom to study (taken from a PSF for example) -dcd {path to DCD} -out {path to outputFile} -xyz {path to outputXYZ}
+Error, not enough arguments, usage is : ./kmeans -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}
 inputFile and outputFile and outputXYZ are necessary fileNames
 
 optional arguments : 
@@ -27,56 +27,63 @@ optional arguments :
 -tolerance       provide the Tolerance for convergence
 
 
+
 Run with all parameters provided from command line : 
 ----------------------------------------------------
 
-If we want to use all coordinates of atom 2534 in dcd as tarting points for the list of mictro states : 
+If we want to use all coordinates of atom 2534 from 2 dcds as starting points for the list of mictro states : 
 
-./kmeans -idx 2534 -dcd data_md/step_1.dcd -out out.dat -xyz out.xyz -cutoff 1.7 -mult 1.0 -thresh 25.0 -tolerance 0.0001
+./kmeans -idx 2533 -dcd 2 ../../1111/run_0.dcd  ../1111/rst1_0.dcd -out outtest -xyz xyztest -cutoff 2.0 -mult 1.0
 
-The corresponding PSF was :
-
-* MBXE4
-* PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL
-...
-...
-    2533 XE3  1    XE3  XE   XE      0.00000       131.293           0   0.00000     -0.301140E-02
-    2534 XE4  1    XE4  XE   XE      0.00000       131.293           0   0.00000     -0.301140E-02
-...
-...
-
-i.e. we see that atoms 2533 and 2534 were XE atoms for which we want to perform kmeans analysis.
-
-as output we get :
-
-HDR :   CORD
-ICNTRL :        1000    500     500     500000  0       0       0       36705   0       1017614562      0       0       0       0       0       0       0       0       0       40
-NTITLE :        3
-TITLE : * MBXE4                                                                         * PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL                             *  DATE:     4/13/15      9:53: 0      CREATED BY USER: hedin                   
-NATOM : 17723
-LNFREAT :       17723
+User provided 2 dcd files : 
+../../1111/run_0.dcd
+../1111/rst1_0.dcd
 Values used for parameters :
-         rCutoff : 1.7
+         rCutoff : 2
          mult : 1
          rThrs : 25
          Tol : 0.0001
          maxCycle : 250
-Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = 1.7
-Not Converged! Number of clusters: 11 drMin: 0.124545 drMax 0.704248
-1 262 26.2
-0 198 19.8
-7 139 13.9
-2 97 9.7
-9 97 9.7
-3 75 7.5
-4 62 6.2
-6 33 3.3
-8 24 2.4
-5 7 0.7
-10 6 0.6
+Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = 2
 
+Reading coordinates from dcd : ../../1111/run_0.dcd
+HDR :   CORD
+ICNTRL :        5000    10100   100     500000  0       0       0       36711   0       1017614562   0       0       0       0       0       0       0       0       0       40
+NTITLE :        3
+TITLE : * MBXE4                                                                         * PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL                             *  DATE:     5/ 7/15     17:10:34      CREATED BY USER: hedin                   
+NATOM : 17725
+LNFREAT :       17725
+Done for dcd : ../../1111/run_0.dcd
 
+Reading coordinates from dcd : ../1111/rst1_0.dcd
+HDR :   CORD
+ICNTRL :        5000    100     100     500000  0       0       0       36711   0       1017614562   0       0       0       0       0       0       0       0       0       40
+NTITLE :        3
+TITLE : * MBXE4                                                                         * PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL                             *  DATE:     5/12/15     17: 0:43      CREATED BY USER: hedin                   
+NATOM : 17725
+LNFREAT :       17725
+Done for dcd : ../1111/rst1_0.dcd
 
-the 6 first lines show some data read at the beginning of the dcd file.
+Total number of frames read from the 2 dcds is : 10000
 
-Then come a summary of parameters used for clustering.
+Now performing the clustering task ...
+
+Not Converged! Number of clusters: 17 drMin: 0 drMax 1.00187
+4 4250 42.5
+9 1935 19.35
+0 1875 18.75
+11 759 7.59
+12 405 4.05
+8 284 2.84
+3 81 0.81
+14 70 0.7
+10 58 0.58
+16 51 0.51
+7 49 0.49
+13 46 0.46
+1 37 0.37
+6 34 0.34
+2 31 0.31
+5 23 0.23
+15 12 0.12
+

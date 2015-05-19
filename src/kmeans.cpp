@@ -135,17 +135,17 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
     }
 }
 
-vector<DCD_R> read_dcds(vector<string>& dcd_paths)
-{
-    vector<DCD_R> dcd;
-    
-    for(string name : dcd_paths)
-    {
-        dcd.push_back(DCD_R(name.c_str()));
-    }
-    
-    return dcd;
-}
+// vector<DCD_R> read_dcds(vector<string>& dcd_paths)
+// {
+//     vector<DCD_R> dcd;
+//     
+//     for(string name : dcd_paths)
+//     {
+//         dcd.push_back(DCD_R(name.c_str()));
+//     }
+//     
+//     return dcd;
+// }
 
 int main(int argc, char* argv[])
 {
@@ -185,9 +185,8 @@ int main(int argc, char* argv[])
 
     bool useDefault(true);
     
-    vector<DCD_R> dcds;
-    
-    //DCD_R *dcdf = nullptr;
+    vector<string> dcds_list;
+    DCD_R *dcdf = nullptr;
     
     // arguments parsing
     for (int i=1; i<argc; i++)
@@ -203,20 +202,18 @@ int main(int argc, char* argv[])
             int ndcd = atoi(argv[++i]);
             cout << "User provided " << ndcd << " dcd files : " << endl;
             
-            vector<string> paths;
-            
             for(int it=0;it<ndcd;it++)
             {
-                paths.push_back(string(argv[++i]));
-                cout << paths.at(it) << endl;
+                dcds_list.push_back(string(argv[++i]));
+                cout << dcds_list.at(it) << endl;
             }
 
-            dcds = read_dcds(paths);
-
-            for(DCD_R& dc : dcds)
-            {
-                dc.printHeader();
-            }
+//             dcds = read_dcds(paths);
+// 
+//             for(DCD_R& dc : dcds)
+//             {
+//                 dc.printHeader();
+//             }
             
         }
         // output file
@@ -291,21 +288,37 @@ int main(int argc, char* argv[])
     vector<double> z;
     vector<double> r;
   
-    // in this loop the coordinates are read frame by frame
-//     for(int i=0;i<dcdf->getNFILE();i++)
-//     {
-//         const float *lx,*ly,*lz;
-//         
-//         dcdf->read_oneFrame();
-// 
-//         lx=dcdf->getX();
-//         ly=dcdf->getY();
-//         lz=dcdf->getZ();
-//         
-//         x.push_back(lx[dcdIndex-1]);
-//         y.push_back(ly[dcdIndex-1]);
-//         z.push_back(lz[dcdIndex-1]);
-//     }
+    // iterate over all provided dcds
+    for (string st : dcds_list)
+    {
+        cout << endl << "Reading coordinates from dcd : " << st << endl;
+        dcdf = new DCD_R(st.c_str());
+        dcdf->printHeader();
+        
+        // in this loop the coordinates are read frame by frame
+        for(int i=0;i<dcdf->getNFILE();i++)
+        {
+            const float *lx,*ly,*lz;
+            
+            dcdf->read_oneFrame();
+
+            lx=dcdf->getX();
+            ly=dcdf->getY();
+            lz=dcdf->getZ();
+            
+            x.push_back(lx[dcdIndex-1]);
+            y.push_back(ly[dcdIndex-1]);
+            z.push_back(lz[dcdIndex-1]);
+        }
+        
+        cout << "Done for dcd : " << st << endl;
+        
+        delete dcdf;
+        dcdf=nullptr;
+        
+    }
+    
+    cout << endl << "Total number of frames read from the " << dcds_list.size() << " dcds is : " << x.size() << endl ;
 
     idTraj.resize(x.size(),0);
     t.resize(x.size(),0.0);
@@ -320,6 +333,8 @@ int main(int argc, char* argv[])
     bool isConverged(false);
     double drMin(1.e20);
     double drMax(0.0);
+    
+    cout << endl << "Now performing the clustering task ..." << endl << endl ;
 
     while(!isConverged && nCycle<maxCycle )
     {

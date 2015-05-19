@@ -40,7 +40,7 @@ DCD_R::DCD_R(const char filename[])
 //     dcd_first_read=true;
 
     read_header();
-    printHeader();
+//     printHeader();
 }
 
 DCD_R::DCD_R(const DCD_R&) : DCD(){
