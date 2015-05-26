@@ -41,20 +41,7 @@ int main(int argc, char* argv[])
         cout << "-tolerance \t provide the Tolerance for convergence" << endl;
         return EXIT_FAILURE;
     }
-    
-//     if(argc<12)
-//     {
-//         cout << "Error, not enough arguments, usage is : " << argv[0] << " -center {index of atom for centering (taken from a PSF for example)} -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
-//         cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
-//         cout << "optional arguments : " << endl;
-//         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
-//         cout << "-cycles \t provide number of cycles" << endl;
-//         cout << "-cutoff \t provide cutoff value for cluster determination" << endl;
-//         cout << "-mult \t provide the Multiplicator factor of the cutoff for exclusion of lonely microstates" << endl;
-//         cout << "-thresh \t provide the Threshold to consider a microstate is in water" << endl;
-//         cout << "-tolerance \t provide the Tolerance for convergence" << endl;
-//         return EXIT_FAILURE;
-//     }
+
 
     FILE *outfile=nullptr, *xyzf=nullptr;
 
@@ -199,54 +186,62 @@ int main(int argc, char* argv[])
             dcdy=dcdf->getY();
             dcdz=dcdf->getZ();
             
-            // first frame of first dcd used as reference for aligning all frames
-            if(refRead==false)
+            if(needAlign)
             {
+                // first frame of first dcd used as reference for aligning all frames
+                if(refRead==false)
+                {
 
-                for (int it = 0; it < dcdf->getNATOM(); it++)
+                    for (int it = 0; it < dcdf->getNATOM(); it++)
+                    {
+                        lxr.push_back(dcdx[it]);
+                        lyr.push_back(dcdy[it]);
+                        lzr.push_back(dcdz[it]);
+                    }
+                    
+                    refRead=true;
+                    
+                    //test with all elements as alignment selection
+                    selection.assign(lxr.size(),true);
+                    
+                    x.push_back( lxr.at(dcdIndex) );
+                    y.push_back( lyr.at(dcdIndex) );
+                    z.push_back( lzr.at(dcdIndex) );
+                    
+                }//first read
+                else
                 {
-                    lxr.push_back(dcdx[it]);
-                    lyr.push_back(dcdy[it]);
-                    lzr.push_back(dcdz[it]);
-                }
-                
-                refRead=true;
-                
-                //test with all elements as alignment selection
-                selection.assign(lxr.size(),true);
-                
-                x.push_back( lxr.at(dcdIndex) );
-                y.push_back( lyr.at(dcdIndex) );
-                z.push_back( lzr.at(dcdIndex) );
-                
-            }
-            else
-            {
-                for (int it = 0; it < dcdf->getNATOM(); it++)
-                {
-                    lx.push_back(dcdx[it]);
-                    ly.push_back(dcdy[it]);
-                    lz.push_back(dcdz[it]);
-                }
-                
-                // now align coordinates from dcd to lxr lyr lzr
-                fprintf(stdout,"Reading dcd %s and reading+aligning frame %d of %d\r",st.c_str(),i+1,dcdf->getNFILE());
-                fflush(stdout);
-                ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
-                
-                //now aligned coordinates are ready for being added to real x y z vector used later
-//                 for (uint it=0; it<selection.size(); it++)
-//                 {
+                    for (int it = 0; it < dcdf->getNATOM(); it++)
+                    {
+                        lx.push_back(dcdx[it]);
+                        ly.push_back(dcdy[it]);
+                        lz.push_back(dcdz[it]);
+                    }
+                    
+                    // now align coordinates from dcd to lxr lyr lzr
+                    fprintf(stdout,"Reading dcd %s and reading+aligning frame %d of %d\r",st.c_str(),i+1,dcdf->getNFILE());
+                    fflush(stdout);
+                    ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
+                    
+                    //now aligned coordinates are ready for being added to real x y z vector used later
                     x.push_back( lx.at(dcdIndex) );
                     y.push_back( ly.at(dcdIndex) );
                     z.push_back( lz.at(dcdIndex) );
-//                 }
-                
-                lx.clear();
-                ly.clear();
-                lz.clear();
-            }
-        }
+
+                    
+                    lx.clear();
+                    ly.clear();
+                    lz.clear();
+                }//others
+            }//need align
+            else
+            {
+                x.push_back( dcdx[dcdIndex] );
+                y.push_back( dcdy[dcdIndex] );
+                z.push_back( dcdz[dcdIndex] );
+            }//not needed align
+            
+        }//loop on reading frames
         
         cout << "Done for dcd : " << st << endl;
         
