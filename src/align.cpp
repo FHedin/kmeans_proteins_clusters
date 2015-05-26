@@ -19,6 +19,11 @@
 
 using namespace std;
 
+
+/**
+ * Aligning a set of coordinates to a reference one using the Kabsch Algorithm :
+ * http://en.wikipedia.org/wiki/Kabsch_algorithm
+ */
 namespace ALIGN {
 
 // align system in x y z using references from xr yr zr

@@ -13,7 +13,6 @@
 
 CXX=g++
 # CXX=icpc
-
 CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O3
 # CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O0 -g
 

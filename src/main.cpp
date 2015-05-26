@@ -19,143 +19,20 @@
 
 #include "dcd_r.hpp"
 #include "align.hpp"
+#include "clustering.hpp"
 
 using namespace std;
+using namespace KMEANS;
 
-
-// for sorting 2 vectors
-void bubble_sort(vector<int>& a, vector<int>& b,int n)
-{
-    int t(0),s(1);
-    while (s)
-    {
-        s = 0;
-        for (int i(1); i < n; i++)
-        {
-            if (a[i] > a[i - 1])
-            {
-                t = a[i];
-                a[i] = a[i - 1];
-                a[i - 1] = t;
-
-                t = b[i];
-                b[i] = b[i - 1];
-                b[i - 1] = t;
-
-                s = 1;
-            }
-        }
-    }
-}
-
-/*
- * For given x,y,z microstate coordinates, find closest cluster
- * store in p index of the cluster
- * and in d distance to the cluster
- * If skip =-1 work done for whole cl vector
- * otherwise if skip>=0 skip the corresponding entry from cl
- */
-void findCl(vector< vector<double> >& cl,double& x, double& y,
-            double& z, double& d, int& p,int skip)
-{
-    double r(0.);
-    double rMin(1.e20);
-
-    for(size_t i=0; i<cl.size(); i++)
-    {
-        //for skipping a given component of the vector cl
-        if((int)i==skip)
-            continue;
-
-        r  = (x-cl.at(i).at(0))*(x-cl.at(i).at(0));
-        r += (y-cl.at(i).at(1))*(y-cl.at(i).at(1));
-        r += (z-cl.at(i).at(2))*(z-cl.at(i).at(2));
-
-        r=sqrt(r);
-
-        if(r<rMin)
-        {
-            rMin=r;
-
-            p=i;
-            d=r;
-
-        }
-    }
-
-}
-
-// merging some clusters if necessary during the cycling in main()
-void lumpCenters(vector< vector<double> >& cl,vector< vector<double> >& ave,
-                 vector<int>& nStates,vector<int>& nAve,double& rExclude)
-{
-    int p(0);
-    double d(0.);
-
-    //cout<<"Lumping clusters."<<endl;
-
-    //starting from the end of the cluster vector
-    for(int i(cl.size()-1); i>0; i--)
-    {
-        findCl(cl,cl.at(i).at(0),cl.at(i).at(1),cl.at(i).at(2),d,p,i);
-        //cout<<"cluster and shortest distance: "<<i+1<<" "<<d<<" "<<p<<endl;
-        if(d<=rExclude)
-        {
-            // merges the i and p clusters
-            cl.at(p).at(0) = ( (cl.at(p).at(0)+cl.at(i).at(0)) ) / 2.0;
-            cl.at(p).at(1) = ( (cl.at(p).at(1)+cl.at(i).at(1)) ) / 2.0;
-            cl.at(p).at(2) = ( (cl.at(p).at(2)+cl.at(i).at(2)) ) / 2.0;
-
-            cl.erase(cl.begin()+i);
-            ave.erase(ave.begin()+i);
-            nStates.erase(nStates.begin()+i);
-            nAve.erase(nAve.begin()+i);
-        }
-        else if(nStates.at(i)==0 || nAve.at(i)==0)
-        {
-            //if cluster was empty remove it
-            cl.erase(cl.begin()+i);
-            ave.erase(ave.begin()+i);
-            nStates.erase(nStates.begin()+i);
-            nAve.erase(nAve.begin()+i);
-        }
-    }
-}
-
-// initializing 1d and 2d vectors with zeroes
-void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& nAve)
-{
-    for(size_t i=0; i<ave.size(); i++)
-    {
-        ave.at(i).at(0)=0.0;
-        ave.at(i).at(1)=0.0;
-        ave.at(i).at(2)=0.0;
-
-        nStates.at(i)=0;
-        nAve.at(i)=0;
-    }
-}
-
-// vector<DCD_R> read_dcds(vector<string>& dcd_paths)
-// {
-//     vector<DCD_R> dcd;
-//     
-//     for(string name : dcd_paths)
-//     {
-//         dcd.push_back(DCD_R(name.c_str()));
-//     }
-//     
-//     return dcd;
-// }
 
 int main(int argc, char* argv[])
 {
-    
-    if(argc<12)
+    if(argc<10)
     {
-        cout << "Error, not enough arguments, usage is : " << argv[0] << " -center {index of atom for centering (taken from a PSF for example)} -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
-        cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
+        cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
+        cout << "inputDCDs and outputFile and outputXYZ are necessary fileNames" << endl << endl;
         cout << "optional arguments : " << endl;
+        cout << "-align \t if present, align all frames from all dcds relative to first frame of first dcd before starting clustering" << endl;
         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
         cout << "-cycles \t provide number of cycles" << endl;
         cout << "-cutoff \t provide cutoff value for cluster determination" << endl;
@@ -164,6 +41,20 @@ int main(int argc, char* argv[])
         cout << "-tolerance \t provide the Tolerance for convergence" << endl;
         return EXIT_FAILURE;
     }
+    
+//     if(argc<12)
+//     {
+//         cout << "Error, not enough arguments, usage is : " << argv[0] << " -center {index of atom for centering (taken from a PSF for example)} -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
+//         cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
+//         cout << "optional arguments : " << endl;
+//         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
+//         cout << "-cycles \t provide number of cycles" << endl;
+//         cout << "-cutoff \t provide cutoff value for cluster determination" << endl;
+//         cout << "-mult \t provide the Multiplicator factor of the cutoff for exclusion of lonely microstates" << endl;
+//         cout << "-thresh \t provide the Threshold to consider a microstate is in water" << endl;
+//         cout << "-tolerance \t provide the Tolerance for convergence" << endl;
+//         return EXIT_FAILURE;
+//     }
 
     FILE *outfile=nullptr, *xyzf=nullptr;
 
@@ -185,6 +76,7 @@ int main(int argc, char* argv[])
     double Tol(1e-4);
 
     bool useDefault(true);
+    bool needAlign(false);
     
     vector<string> dcds_list;
     DCD_R *dcdf = nullptr;
@@ -209,15 +101,7 @@ int main(int argc, char* argv[])
             {
                 dcds_list.push_back(string(argv[++i]));
                 cout << dcds_list.at(it) << endl;
-            }
-
-//             dcds = read_dcds(paths);
-// 
-//             for(DCD_R& dc : dcds)
-//             {
-//                 dc.printHeader();
-//             }
-            
+            }    
         }
         // output file
         else if (!strcasecmp(argv[i],"-out"))
@@ -228,6 +112,11 @@ int main(int argc, char* argv[])
         else if (!strcasecmp(argv[i],"-xyz"))
         {
             xyzf = fopen(argv[++i],"wt");
+        }
+        // optionnall align all frames
+        else if (!strcasecmp(argv[i],"-align"))
+        {
+            needAlign = true;
         }
         // get number of cycles
         else if (!strcasecmp(argv[i],"-cycles"))
@@ -285,6 +174,9 @@ int main(int argc, char* argv[])
 
     cout<<"Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = "<<rExclude<<endl;
     
+    vector<double> x;
+    vector<double> y;
+    vector<double> z;
     vector<float> lx, lxr, ly, lyr, lz, lzr;
     vector<bool> selection;
     bool refRead=false;
@@ -297,9 +189,9 @@ int main(int argc, char* argv[])
         dcdf->printHeader();
         
         // in this loop the coordinates are read frame by frame
-        for(int i=0;i<dcdf->getNFILE();i++)
+        for(int i=0; i<dcdf->getNFILE(); i++)
         {
-            const float *dcdx,*dcdy,*dcdz;
+            const float *dcdx=nullptr,*dcdy=nullptr,*dcdz=nullptr;
             
             dcdf->read_oneFrame();
             
@@ -320,6 +212,13 @@ int main(int argc, char* argv[])
                 
                 refRead=true;
                 
+                //test with all elements as alignment selection
+                selection.assign(lxr.size(),true);
+                
+                x.push_back( lxr.at(dcdIndex) );
+                y.push_back( lyr.at(dcdIndex) );
+                z.push_back( lzr.at(dcdIndex) );
+                
             }
             else
             {
@@ -329,6 +228,23 @@ int main(int argc, char* argv[])
                     ly.push_back(dcdy[it]);
                     lz.push_back(dcdz[it]);
                 }
+                
+                // now align coordinates from dcd to lxr lyr lzr
+                fprintf(stdout,"Reading dcd %s and reading+aligning frame %d of %d\r",st.c_str(),i+1,dcdf->getNFILE());
+                fflush(stdout);
+                ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
+                
+                //now aligned coordinates are ready for being added to real x y z vector used later
+//                 for (uint it=0; it<selection.size(); it++)
+//                 {
+                    x.push_back( lx.at(dcdIndex) );
+                    y.push_back( ly.at(dcdIndex) );
+                    z.push_back( lz.at(dcdIndex) );
+//                 }
+                
+                lx.clear();
+                ly.clear();
+                lz.clear();
             }
         }
         
@@ -339,32 +255,29 @@ int main(int argc, char* argv[])
         
     }
     
-    cout << endl << "Total number of frames read from the " << dcds_list.size() << " dcds is : " << lx.size() << endl ;
+    cout << endl << "Total number of frames read from the " << dcds_list.size() << " dcds is : " << x.size() << endl ;
     
+//     cout << "Dump of vectors x y z of size : " << x.size() << '\t' << y.size() << '\t' << z.size() << endl;
+//     for (uint i=0; i<x.size(); i++)
+//     {
+//         printf("%lf\t%lf\t%lf\n",x[i],y[i],z[i]);
+//     }
     
-    // alignment section -------------------------------------
+    selection.clear();
+    lx.clear();
+    ly.clear();
+    lz.clear();
+    lxr.clear();
+    lyr.clear();
+    lzr.clear();
     
-    //test with all elements as alignment selection
-    selection.assign(lxr.size(),true);
-    
-    // now align coordinates from dcd
-    for (int it=0; it<selection.size(); it++)
-    {
-        ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
-    }
-    
-    exit(0);
-    
-    // end of alignment section -------------------------------------
-    
+//     exit(0);
+ 
     /*
      * vectors for storing data read from input file
      */
     vector<int> idTraj;
     vector<double> t;
-    vector<double> x;
-    vector<double> y;
-    vector<double> z;
     vector<double> r;
     
     idTraj.resize(x.size(),0);
