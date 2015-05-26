@@ -18,6 +18,7 @@
 #include <cmath>
 
 #include "dcd_r.hpp"
+#include "align.hpp"
 
 using namespace std;
 
@@ -150,9 +151,9 @@ void zeroArrays(vector< vector<double> >& ave,vector<int>& nStates,vector<int>& 
 int main(int argc, char* argv[])
 {
     
-    if(argc<10)
+    if(argc<12)
     {
-        cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
+        cout << "Error, not enough arguments, usage is : " << argv[0] << " -center {index of atom for centering (taken from a PSF for example)} -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
         cout << "inputFile and outputFile and outputXYZ are necessary fileNames" << endl << endl;
         cout << "optional arguments : " << endl;
         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
@@ -187,6 +188,8 @@ int main(int argc, char* argv[])
     
     vector<string> dcds_list;
     DCD_R *dcdf = nullptr;
+    
+    int centering(-1);
     
     // arguments parsing
     for (int i=1; i<argc; i++)
@@ -251,6 +254,10 @@ int main(int argc, char* argv[])
         {
             useDefault = false;
         }
+        else if (!strcasecmp(argv[i],"-center"))
+        {
+            centering=atoi(argv[++i]);
+        }
     }
     
     if(!useDefault)
@@ -277,16 +284,10 @@ int main(int argc, char* argv[])
     double rExclude(mult*rCutoff);
 
     cout<<"Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = "<<rExclude<<endl;
-
-    /*
-     * vectors sor storing data read from input file
-     */
-    vector<int> idTraj;
-    vector<double> t;
-    vector<double> x;
-    vector<double> y;
-    vector<double> z;
-    vector<double> r;
+    
+    vector<float> lx, lxr, ly, lyr, lz, lzr;
+    vector<bool> selection;
+    bool refRead=false;
   
     // iterate over all provided dcds
     for (string st : dcds_list)
@@ -298,17 +299,37 @@ int main(int argc, char* argv[])
         // in this loop the coordinates are read frame by frame
         for(int i=0;i<dcdf->getNFILE();i++)
         {
-            const float *lx,*ly,*lz;
+            const float *dcdx,*dcdy,*dcdz;
             
             dcdf->read_oneFrame();
-
-            lx=dcdf->getX();
-            ly=dcdf->getY();
-            lz=dcdf->getZ();
             
-            x.push_back(lx[dcdIndex-1]);
-            y.push_back(ly[dcdIndex-1]);
-            z.push_back(lz[dcdIndex-1]);
+            dcdx=dcdf->getX();
+            dcdy=dcdf->getY();
+            dcdz=dcdf->getZ();
+            
+            // first frame of first dcd used as reference for aligning all frames
+            if(refRead==false)
+            {
+
+                for (int it = 0; it < dcdf->getNATOM(); it++)
+                {
+                    lxr.push_back(dcdx[it]);
+                    lyr.push_back(dcdy[it]);
+                    lzr.push_back(dcdz[it]);
+                }
+                
+                refRead=true;
+                
+            }
+            else
+            {
+                for (int it = 0; it < dcdf->getNATOM(); it++)
+                {
+                    lx.push_back(dcdx[it]);
+                    ly.push_back(dcdy[it]);
+                    lz.push_back(dcdz[it]);
+                }
+            }
         }
         
         cout << "Done for dcd : " << st << endl;
@@ -318,8 +339,34 @@ int main(int argc, char* argv[])
         
     }
     
-    cout << endl << "Total number of frames read from the " << dcds_list.size() << " dcds is : " << x.size() << endl ;
-
+    cout << endl << "Total number of frames read from the " << dcds_list.size() << " dcds is : " << lx.size() << endl ;
+    
+    
+    // alignment section -------------------------------------
+    
+    //test with all elements as alignment selection
+    selection.assign(lxr.size(),true);
+    
+    // now align coordinates from dcd
+    for (int it=0; it<selection.size(); it++)
+    {
+        ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
+    }
+    
+    exit(0);
+    
+    // end of alignment section -------------------------------------
+    
+    /*
+     * vectors for storing data read from input file
+     */
+    vector<int> idTraj;
+    vector<double> t;
+    vector<double> x;
+    vector<double> y;
+    vector<double> z;
+    vector<double> r;
+    
     idTraj.resize(x.size(),0);
     t.resize(x.size(),0.0);
     r.resize(x.size(),0.0);

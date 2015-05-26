@@ -14,12 +14,12 @@
 CXX=g++
 # CXX=icpc
 
-# CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O3
-CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O0 -g
+CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O3
+# CXX_OPT= -std=c++11 -I "./include" -march=native -Wall -Wextra -pedantic -O0 -g
 
 LD_LIB=
 
-LD_OPT=
+LD_OPT=-lm -lblas -llapack
 
 MKDIR=mkdir -p ./obj
 
