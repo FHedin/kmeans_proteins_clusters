@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
         cout << "Error, not enough arguments, usage is : " << argv[0] << " -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}"<<endl;
         cout << "inputDCDs and outputFile and outputXYZ are necessary fileNames" << endl << endl;
         cout << "optional arguments : " << endl;
-        cout << "-align \t if present, align all frames from all dcds relative to first frame of first dcd before starting clustering" << endl;
+        cout << "-align {first} {last} \t if present, align all frames from all dcds relative to first frame of first dcd before starting clustering" << endl;
         cout << "-interactive \t if present the user will have to provide parameters interactively" << endl;
         cout << "-cycles \t provide number of cycles" << endl;
         cout << "-cutoff \t provide cutoff value for cluster determination" << endl;
@@ -63,12 +63,13 @@ int main(int argc, char* argv[])
     double Tol(1e-4);
 
     bool useDefault(true);
-    bool needAlign(false);
     
     vector<string> dcds_list;
     DCD_R *dcdf = nullptr;
     
-    int centering(-1);
+    bool needAlign(false);
+    int firstAlign(-1);
+    int lastAlign(-1);
     
     // arguments parsing
     for (int i=1; i<argc; i++)
@@ -100,11 +101,6 @@ int main(int argc, char* argv[])
         {
             xyzf = fopen(argv[++i],"wt");
         }
-        // optionnall align all frames
-        else if (!strcasecmp(argv[i],"-align"))
-        {
-            needAlign = true;
-        }
         // get number of cycles
         else if (!strcasecmp(argv[i],"-cycles"))
         {
@@ -130,9 +126,12 @@ int main(int argc, char* argv[])
         {
             useDefault = false;
         }
-        else if (!strcasecmp(argv[i],"-center"))
+        // optionnall align all frames
+        else if (!strcasecmp(argv[i],"-align"))
         {
-            centering=atoi(argv[++i]);
+            needAlign = true;
+            firstAlign = atoi(argv[++i]);
+            lastAlign = atoi(argv[++i]);
         }
     }
     
@@ -175,6 +174,19 @@ int main(int argc, char* argv[])
         dcdf = new DCD_R(st.c_str());
         dcdf->printHeader();
         
+        if(needAlign)
+        {
+            selection.assign(dcdf->getNATOM(),false);
+//             cout << "Dump of aligning selection : " << endl;
+            for(int it=firstAlign-1;it<=lastAlign-1;it++)
+            {
+                selection.at(it) = true;
+            }
+//             for(bool bl : selection)
+//                 cout << bl << '\t';
+//             cout << endl;
+        }
+        
         // in this loop the coordinates are read frame by frame
         for(int i=0; i<dcdf->getNFILE(); i++)
         {
@@ -200,9 +212,6 @@ int main(int argc, char* argv[])
                     }
                     
                     refRead=true;
-                    
-                    //test with all elements as alignment selection
-                    selection.assign(lxr.size(),true);
                     
                     x.push_back( lxr.at(dcdIndex) );
                     y.push_back( lyr.at(dcdIndex) );
