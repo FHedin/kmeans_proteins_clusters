@@ -24,10 +24,11 @@ using namespace std;
  * Aligning a set of coordinates to a reference one using the Kabsch Algorithm :
  * http://en.wikipedia.org/wiki/Kabsch_algorithm
  */
-namespace ALIGN {
+namespace align
+{
 
 // align system in x y z using references from xr yr zr
-void align_to_ref(vector<float>& x, vector<float>& y, vector<float>& z,
+void kabsch_align(vector<float>& x, vector<float>& y, vector<float>& z,
              vector<float>& xr, vector<float>& yr, vector<float>& zr,
              vector<bool>& index_c)
 {

@@ -14,7 +14,7 @@
 
 #include<vector>
 
-namespace KMEANS
+namespace kmeans
 {
     
 void bubble_sort(std::vector<int>& a, std::vector<int>& b,int n);

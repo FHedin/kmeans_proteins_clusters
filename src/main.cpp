@@ -22,7 +22,7 @@
 #include "clustering.hpp"
 
 using namespace std;
-using namespace KMEANS;
+using namespace kmeans;
 
 
 int main(int argc, char* argv[])
@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
                     // now align coordinates from dcd to lxr lyr lzr
                     fprintf(stdout,"Reading dcd %s and reading+aligning frame %d of %d\r",st.c_str(),i+1,dcdf->getNFILE());
                     fflush(stdout);
-                    ALIGN::align_to_ref(lx,ly,lz,lxr,lyr,lzr,selection);
+                    align::kabsch_align(lx,ly,lz,lxr,lyr,lzr,selection);
                     
                     //now aligned coordinates are ready for being added to real x y z vector used later
                     x.push_back( lx.at(dcdIndex) );
@@ -477,9 +477,9 @@ int main(int argc, char* argv[])
     }
     else
     {
-        fprintf(xyzf,"%d\n",(int)cl.size()+1);
-        fprintf(xyzf,"clusters\n");
-        fprintf(xyzf,"Fe  0.0000 0.00000 0.00000\n");
+        fprintf(xyzf,"%d\n",(int)cl.size());
+        fprintf(xyzf,"#coordinates of all dcd frames using protein atoms %d to %d\n",firstAlign,lastAlign);
+        //fprintf(xyzf,"Fe  0.0000 0.00000 0.00000\n");
         for(size_t i(0); i<nStates.size(); i++)
         {
             cout<<mask.at(i)<<" "<<nStates.at(i)<<" "<<double(nStates.at(i))/double(x.size())*100.<<endl;

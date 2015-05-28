@@ -12,7 +12,7 @@
 #ifndef ALIGN_HPP_INCLUDED
 #define ALIGN_HPP_INCLUDED
     
-namespace ALIGN
+namespace align
 {
 
 typedef struct
@@ -25,7 +25,7 @@ typedef struct
 #define LAPACK_SGESVD_ERROR             120
 #define SIGN(a)                (a==0.0)?0.0:(a/fabs(a))
     
-void align_to_ref(std::vector<float>& x, std::vector<float>& y, std::vector<float>& z,
+void kabsch_align(std::vector<float>& x, std::vector<float>& y, std::vector<float>& z,
              std::vector<float>& xr, std::vector<float>& yr, std::vector<float>& zr,
              std::vector<bool>& index_c);
 

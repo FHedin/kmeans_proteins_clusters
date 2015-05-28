@@ -12,7 +12,7 @@
 
 #include "clustering.hpp"
 
-namespace KMEANS
+namespace kmeans
 {
     
 using namespace std;
