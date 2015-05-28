@@ -20,7 +20,7 @@ protected:
     //protected attributes
     std::fstream dcdf;  // for opening dcd file
     
-    bool dcd_first_read; // at first read of the coordinates if there are some frozen atoms the number of coordinates to read is different than for other frames
+    bool dcd_first_read=true; // at first read of the coordinates if there are some frozen atoms the number of coordinates to read is different than for other frames
     
     char HDR[4+1]; // is CORD if only coordinates or VEL if velocities included (not supported yet)
     int  ICNTRL[20];
@@ -57,6 +57,7 @@ protected:
                              const unsigned int fortcheck1, const unsigned int fortcheck2) const;
 public:
     DCD();
+    DCD(const DCD& d);
     
     int getNFILE() const;
     const float* getZ() const;

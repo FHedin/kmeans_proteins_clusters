@@ -22,14 +22,17 @@ private:
     //no private attributes
     //private methods
     virtual void alloc();
+    void read_header();
+    bool is_allocated;
     
 public:
     
     // no public attributes
     // public methods
     DCD_R(const char filename[]); //constructor
+    DCD_R(const DCD_R& d);
     
-    void read_header();
+
     void read_oneFrame();
     void printHeader() const;
         

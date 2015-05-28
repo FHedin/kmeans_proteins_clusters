@@ -4,21 +4,39 @@ kmeans clustering for studying migrations in proteins
 C++ implementation of the kmeans algorithm (http://en.wikipedia.org/wiki/K-means_clustering)
 for finding clusters of stable microstates when studying ligand migration in proteins
  
+Molecular systems are realigned using the Kabsch algorithm (http://en.wikipedia.org/wiki/Kabsch_algorithm)
+ 
 Copyright (c) 2015, Florent Hédin, Pierre-André Cazade, and the University of Basel.
 All rights reserved.
  
 The 3-clause BSD license is applied to this software.
 See LICENSE.txt
 
+-----------
+Compiling :
+-----------
+
+The Kabsch algorithm implementation for realigning the dcd frames requires the BLAS and LAPACK development packages to be installed on your system : 
+
+On rpm based systems:
+
+    sudo yum install blas-devel lapack-devel
+
+On deb based systems:
+
+    sudo apt-get install libblas-dev liblapack-dev
+
+------------------
 Print help/usage :
 ------------------
 
 ./kmeans
 
-Error, not enough arguments, usage is : kmeans -idx index of atom to study (taken from a PSF for example) -dcd {path to DCD} -out {path to outputFile} -xyz {path to outputXYZ}
-inputFile and outputFile and outputXYZ are necessary fileNames
+Error, not enough arguments, usage is : kmeans -idx {index of atom to study (taken from a PSF for example)} -dcd {number of dcd files} {paths to DCDs} -out {path to outputFile} -xyz {path to outputXYZ}
+inputDCDs and outputFile and outputXYZ are necessary fileNames
 
 optional arguments : 
+-align {first} {last}    if present, align all frames from all dcds relative to first frame of first dcd before starting clustering
 -interactive     if present the user will have to provide parameters interactively
 -cycles          provide number of cycles
 -cutoff          provide cutoff value for cluster determination
@@ -26,57 +44,13 @@ optional arguments :
 -thresh          provide the Threshold to consider a microstate is in water
 -tolerance       provide the Tolerance for convergence
 
-
+----------------------------------------------------
 Run with all parameters provided from command line : 
 ----------------------------------------------------
 
-If we want to use all coordinates of atom 2534 in dcd as tarting points for the list of mictro states : 
+If we want to use all coordinates of atom 2534 from 2 dcds as starting points for the list of mictro states, aligning all dcd frames to atoms 1 to 2532
 
-./kmeans -idx 2534 -dcd data_md/step_1.dcd -out out.dat -xyz out.xyz -cutoff 1.7 -mult 1.0 -thresh 25.0 -tolerance 0.0001
-
-The corresponding PSF was :
-
-* MBXE4
-* PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL
-...
-...
-    2533 XE3  1    XE3  XE   XE      0.00000       131.293           0   0.00000     -0.301140E-02
-    2534 XE4  1    XE4  XE   XE      0.00000       131.293           0   0.00000     -0.301140E-02
-...
-...
-
-i.e. we see that atoms 2533 and 2534 were XE atoms for which we want to perform kmeans analysis.
-
-as output we get :
-
-HDR :   CORD
-ICNTRL :        1000    500     500     500000  0       0       0       36705   0       1017614562      0       0       0       0       0       0       0       0       0       40
-NTITLE :        3
-TITLE : * MBXE4                                                                         * PROJECT: RELAXATION TRAJECTORIES AFTER XE REMOVAL                             *  DATE:     4/13/15      9:53: 0      CREATED BY USER: hedin                   
-NATOM : 17723
-LNFREAT :       17723
-Values used for parameters :
-         rCutoff : 1.7
-         mult : 1
-         rThrs : 25
-         Tol : 0.0001
-         maxCycle : 250
-Global exclusion (Cutoff*MultiplicatorFactor) is rExclude = 1.7
-Not Converged! Number of clusters: 11 drMin: 0.124545 drMax 0.704248
-1 262 26.2
-0 198 19.8
-7 139 13.9
-2 97 9.7
-9 97 9.7
-3 75 7.5
-4 62 6.2
-6 33 3.3
-8 24 2.4
-5 7 0.7
-10 6 0.6
+./kmeans -idx 2536 -dcd 2 ../1111/run_0.dcd ../rst1/1111/rst1_0.dcd -out test1111.out -xyz test1111.xyz -cutoff 1.8 -mult 4.5 -align 1 2532
 
 
 
-the 6 first lines show some data read at the beginning of the dcd file.
-
-Then come a summary of parameters used for clustering.

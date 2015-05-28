@@ -19,6 +19,10 @@
 
 using namespace std;
 
+// DCD_R::DCD_R()
+// {
+// }
+
 DCD_R::DCD_R(const char filename[])
 {
     
@@ -33,11 +37,18 @@ DCD_R::DCD_R(const char filename[])
         cerr << "Please chech the path of the file and if it exists." << endl;
     } 
     
-    dcd_first_read=true;
+//     dcd_first_read=true;
+
+    read_header();
+//     printHeader();
+}
+
+DCD_R::DCD_R(const DCD_R&) : DCD(){
 }
 
 void DCD_R::alloc()
 {
+    is_allocated=true;
     X=new float[NATOM];
     Y=new float[NATOM];
     Z=new float[NATOM];
@@ -202,15 +213,19 @@ void DCD_R::printHeader() const
 
 DCD_R::~DCD_R()
 {
-    dcdf.close();
+    if (dcdf.is_open())
+        dcdf.close();
     
-    delete[] TITLE;
-    
-    if (LNFREAT != NATOM)
-        delete[] FREEAT;
-    
-    delete[] X;
-    delete[] Y;
-    delete[] Z;
+    if(is_allocated)
+    {
+        delete[] TITLE;
+        
+        if (LNFREAT != NATOM)
+            delete[] FREEAT;
+        
+        delete[] X;
+        delete[] Y;
+        delete[] Z;
+    }
 }
 
